@@ -94,6 +94,10 @@ export class TasksService {
     return { tasks, count };
   }
 
+  async find(): Promise<Task[]> {
+    return await this.tasksRepository.find();
+  }
+
   async findOne(id: string): Promise<Task | null> {
     //handle the null case in controller
     const task = await this.tasksRepository.findOne({
@@ -104,7 +108,7 @@ export class TasksService {
     return task;
   }
 
-  async update(id: string, updateTaskDto: UpdateTaskDto): Promise<Task> {
+  async update(id: string, updateTaskDto: UpdateTaskDto): Promise<Task | null> {
     // Inefficient implementation: multiple database calls
     // and no transaction handling
     const queryRunner = this.dataSource.createQueryRunner();
@@ -113,7 +117,7 @@ export class TasksService {
     try {
       const task = await this.findOne(id);
       if (!task) {
-        throw new NotFoundException(`Task with ID ${id} not found`);
+        return null; // Handle this case in the controller
       }
       const updatedTask = Object.assign(task, updateTaskDto);
       const originalStatus = task.status;
@@ -149,16 +153,16 @@ export class TasksService {
   }
 
   async findByStatus(status: TaskStatus): Promise<Task[]> {
-    return this.tasksRepository.find({
+    return await this.tasksRepository.find({
       where: { status },
     });
   }
 
-  async updateStatus(id: string, status: string): Promise<Task> {
+  async updateStatus(id: string, status: string): Promise<Task | null> {
     // This method will be called by the task processor
     const task = await this.findOne(id);
     if (!task) {
-      throw new NotFoundException(`Task with ID ${id} not found`);
+      return null;
     }
     task.status = status as any;
     return this.tasksRepository.save(task);
