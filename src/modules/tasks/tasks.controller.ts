@@ -79,7 +79,7 @@ export class TasksController {
       highPriority: tasks.filter(t => t.priority === TaskPriority.HIGH).length,
     };
 
-    return statistics;
+    return successRes(statistics);
   }
 
   @Get(':id')

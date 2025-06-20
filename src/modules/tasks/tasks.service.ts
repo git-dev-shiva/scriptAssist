@@ -26,7 +26,10 @@ export class TasksService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      const task = this.tasksRepository.create(createTaskDto);
+      const task = this.tasksRepository.create({
+        ...createTaskDto,
+        user: { id: createTaskDto.userId },
+      });
       const savedTask = await this.tasksRepository.save(task);
       if (savedTask)
         this.taskQueue.add('task-status-update', {
