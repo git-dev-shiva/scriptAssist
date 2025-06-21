@@ -20,8 +20,6 @@ export class TasksService {
   ) {}
 
   async create(createTaskDto: CreateTaskDto): Promise<Task> {
-    // Inefficient implementation: creates the task but doesn't use a single transaction
-    // for creating and adding to queue, potential for inconsistent state
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -143,16 +141,13 @@ export class TasksService {
     }
   }
 
-  async remove(id: string): Promise<void> {
-    // Inefficient implementation: two separate database calls
-    // const task = await this.findOne(id);
-    // await this.tasksRepository.remove(task);
-
+  async remove(id: string): Promise<{ message: string }> {
     const result = await this.tasksRepository.delete(id);
 
     if (result.affected === 0) {
       throw new NotFoundException(`Task with ID ${id} not found`);
     }
+    return { message: `Task with ID ${id} deleted successfully` };
   }
 
   async findByStatus(status: TaskStatus): Promise<Task[]> {

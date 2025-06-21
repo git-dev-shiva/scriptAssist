@@ -8,27 +8,21 @@ import {
   Delete,
   UseGuards,
   Query,
-  HttpException,
-  HttpStatus,
-  UseInterceptors,
 } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
-import { Task } from './entities/task.entity';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { TaskStatus } from './enums/task-status.enum';
 import { TaskPriority } from './enums/task-priority.enum';
 import { RateLimitGuard } from '../../common/guards/rate-limit.guard';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator';
 import { TaskFilterDto } from './dto/task-filter.dto';
 import { badRequestRes, res500, successRes } from '@common/interceptors/response.handlers';
+import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 
 // This guard needs to be implemented or imported from the correct location
 // We're intentionally leaving it as a non-working placeholder
-class JwtAuthGuard {}
 
 @ApiTags('tasks')
 @Controller('tasks')
@@ -36,17 +30,12 @@ class JwtAuthGuard {}
 @RateLimit({ limit: 100, windowMs: 60000 })
 @ApiBearerAuth()
 export class TasksController {
-  constructor(
-    private readonly tasksService: TasksService,
-    // Anti-pattern: Controller directly accessing repository
-    // @InjectRepository(Task)
-    // private taskRepository: Repository<Task>,
-  ) {}
+  constructor(private readonly tasksService: TasksService) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new task' })
-  create(@Body() createTaskDto: CreateTaskDto) {
-    const task = this.tasksService.create(createTaskDto);
+  async create(@Body() createTaskDto: CreateTaskDto) {
+    const task = await this.tasksService.create(createTaskDto);
     if (!task) {
       return badRequestRes('Failed to create task', {
         errorCode: 'task_creation_failed',
@@ -112,7 +101,7 @@ export class TasksController {
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a task' })
   async remove(@Param('id') id: string) {
-    return this.tasksService.remove(id);
+    return await this.tasksService.remove(id);
   }
 
   @Post('batch')
