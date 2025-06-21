@@ -165,4 +165,39 @@ export class TasksService {
     task.status = status as any;
     return this.tasksRepository.save(task);
   }
+
+  async batchProcessTasks(taskIds: string[], action: 'complete' | 'delete') {
+    if (action === 'complete') {
+      const updated = await this.tasksRepository
+        .createQueryBuilder()
+        .update(Task)
+        .set({ status: TaskStatus.COMPLETED })
+        .whereInIds(taskIds)
+        .andWhere('status != :status', { status: TaskStatus.COMPLETED }) // avoid unnecessary writes
+        .execute();
+
+      // Enqueue status update events
+      for (const taskId of taskIds) {
+        await this.taskQueue.add('task-status-update', {
+          taskId,
+          status: TaskStatus.COMPLETED,
+        });
+      }
+
+      return { updated: updated.affected };
+    }
+
+    if (action === 'delete') {
+      const deleted = await this.tasksRepository
+        .createQueryBuilder()
+        .delete()
+        .from(Task)
+        .whereInIds(taskIds)
+        .execute();
+
+      return { deleted: deleted.affected };
+    }
+
+    throw new Error('Invalid action');
+  }
 }

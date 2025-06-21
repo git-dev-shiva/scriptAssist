@@ -20,6 +20,7 @@ import { RateLimit } from '../../common/decorators/rate-limit.decorator';
 import { TaskFilterDto } from './dto/task-filter.dto';
 import { badRequestRes, res500, successRes } from '@common/interceptors/response.handlers';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
+import { BatchProcessDto } from './dto/batch-process.dto';
 
 // This guard needs to be implemented or imported from the correct location
 // We're intentionally leaving it as a non-working placeholder
@@ -104,10 +105,55 @@ export class TasksController {
     return await this.tasksService.remove(id);
   }
 
+  // @Post('batch')
+  // @ApiOperation({ summary: 'Batch process multiple tasks' })
+  // async batchProcess(@Body() operations: BatchProcessDto) {
+  //   // Inefficient batch processing: Sequential processing instead of bulk operations
+  //   const { tasks: taskIds, action } = operations;
+
+  //   if (!Array.isArray(taskIds) || taskIds.length === 0) {
+  //     return badRequestRes('No task IDs provided', {
+  //       errorCode: 'no_task_ids_provided',
+  //     });
+  //   }
+  //   const results = [];
+
+  //   // N+1 query problem: Processing tasks one by one
+  //   for (const taskId of taskIds) {
+  //     try {
+  //       let result;
+
+  //       switch (action) {
+  //         case 'complete':
+  //           result = await this.tasksService.update(taskId, { status: TaskStatus.COMPLETED });
+  //           break;
+  //         case 'delete':
+  //           result = await this.tasksService.remove(taskId);
+  //           break;
+  //         default:
+  //           return res500(
+  //             { name: 'InvalidActionError', message: 'Invalid action provided' },
+  //             { errorCode: 'invalid_action', data: { action } },
+  //           );
+  //       }
+
+  //       results.push({ taskId, success: true, result });
+  //     } catch (error: any) {
+  //       // Inconsistent error handling
+  //       results.push({
+  //         taskId,
+  //         success: false,
+  //         error: error instanceof Error ? error.message : 'Unknown error',
+  //       });
+  //     }
+  //   }
+
+  //   return results;
+  // }
+
   @Post('batch')
   @ApiOperation({ summary: 'Batch process multiple tasks' })
-  async batchProcess(@Body() operations: { tasks: string[]; action: string }) {
-    // Inefficient batch processing: Sequential processing instead of bulk operations
+  async batchProcess(@Body() operations: BatchProcessDto) {
     const { tasks: taskIds, action } = operations;
 
     if (!Array.isArray(taskIds) || taskIds.length === 0) {
@@ -115,38 +161,14 @@ export class TasksController {
         errorCode: 'no_task_ids_provided',
       });
     }
-    const results = [];
 
-    // N+1 query problem: Processing tasks one by one
-    for (const taskId of taskIds) {
-      try {
-        let result;
-
-        switch (action) {
-          case 'complete':
-            result = await this.tasksService.update(taskId, { status: TaskStatus.COMPLETED });
-            break;
-          case 'delete':
-            result = await this.tasksService.remove(taskId);
-            break;
-          default:
-            return res500(
-              { name: 'InvalidActionError', message: 'Invalid action provided' },
-              { errorCode: 'invalid_action', data: { action } },
-            );
-        }
-
-        results.push({ taskId, success: true, result });
-      } catch (error: any) {
-        // Inconsistent error handling
-        results.push({
-          taskId,
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
+    try {
+      const result = await this.tasksService.batchProcessTasks(taskIds, action);
+      return successRes(result);
+    } catch (error: any) {
+      return res500(error, {
+        errorCode: 'batch_processing_failed',
+      });
     }
-
-    return results;
   }
 }
